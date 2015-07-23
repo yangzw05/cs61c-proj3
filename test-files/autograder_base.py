@@ -38,6 +38,27 @@ def fraction_lines_match_unbounded(student_out,reference_out):
     print line2
   return float(matched_lines)/float(total_lines)
       
+def fraction_lines_match_unbounded2(student_out,reference_out):
+  total_lines = 0
+  matched_lines = 0
+  line1 = student_out.readline()
+  line2 = reference_out.readline()
+  while line2:    
+    if re.split('\W+', line2) == ['', '1', ''] or re.split('\W+', line2) == ['', '0', '']: # Stall line
+      line3 = reference_out.readline()
+      while re.match(line2, line1) and not re.match(line3, line1):
+        line1 = student_out.readline()
+      line2 = line3
+      continue
+    if re.match(line2, line1):
+      matched_lines += 1
+    else:
+      print '**** student: ' + line1
+      print '**** ref: ' + line2
+    total_lines += 1
+    line1 = student_out.readline()
+    line2 = reference_out.readline()
+  return float(matched_lines)/float(total_lines)
 
 class TestCase(object):
   def __init__(self,circfile,tracefile,points):
@@ -70,13 +91,13 @@ class FractionalTestCase(TestCase):
   """
   def __call__(self):
     output = tempfile.TemporaryFile(mode='r+')
-    shutil.copy(self.circfile,'.')
+    #shutil.copy(self.circfile,'.')
     proc = subprocess.Popen(["java","-jar",logisim_location,"-tty","table",os.path.join('.',os.path.basename(self.circfile))],
                             stdin=open('/dev/null'),
                             stdout=subprocess.PIPE)
     try:
       reference = open(self.tracefile)
-      fraction = fraction_lines_match_unbounded(proc.stdout,reference)
+      fraction = fraction_lines_match_unbounded2(proc.stdout,reference)
     finally:
       #prevent runaway jvms
       os.kill(proc.pid,signal.SIGTERM)

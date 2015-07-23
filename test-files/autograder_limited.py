@@ -8,6 +8,8 @@ from autograder_base import file_locations, AbsoluteTestCase, FractionalTestCase
 tests = [
   ("ALU addu test",AbsoluteTestCase(os.path.join(file_locations,'ALU-addu.circ'),os.path.join(file_locations,'out-files/ALU-addu.out'),1)),
   ("ALU shift test",AbsoluteTestCase(os.path.join(file_locations,'ALU-shift.circ'),os.path.join(file_locations,'out-files/ALU-shift.out'),1)),
+  ("ALU mulad test",FractionalTestCase(os.path.join(file_locations,'ALU-mulad.circ'),os.path.join(file_locations,'out-files/ALU-mulad.out'),1)),
+  ("ALU divsub test",FractionalTestCase(os.path.join(file_locations,'ALU-divsub.circ'),os.path.join(file_locations,'out-files/ALU-divsub.out'),1)),
   ("RegFile insert test",AbsoluteTestCase(os.path.join(file_locations,'reg-insert.circ'),os.path.join(file_locations,'out-files/reg-insert.out'),1)),
 ]
 
