@@ -10,8 +10,28 @@ import re
 import sys
 import shutil
 
+log = 1
+
 file_locations = os.path.expanduser(os.getcwd())
 logisim_location = os.path.join(os.getcwd(),"MIPS-logisim.jar")
+if log:
+  logfile = open('TEST_LOG','w')
+
+alu_header = "\t|\t\t\tStudent\t\t\t\t\t|\t\t\tReference\t\t\t\t|\nProblem\t|Cycle\tEqual\tOvrflw\tOutput\t\ttoHi\t\tStall\t|Cycle\tEqual\tOvrflw\tOutput\t\ttoHi\t\tStall\t|\n" + ''.join('-' for a in xrange(137))
+reg_header = "\t|\t\t\t\t\t\t\tStudent\t\t\t\t\t\t|\t\t\t\t\t\tReference\t\t\t\t\t\t|\nProblem\t|Cycle\t$t0\t\t$t1\t\t$t2\t\t$t3\t\tRead1\t\tRead2\t\t|Cycle\t$t0\t\t$t1\t\t$t2\t\t$t3\t\tRead1\t\tRead2\t\t|\n" + ''.join('-' for a in xrange(211))
+cpu_header = "\t|\t\t\t\t\t\tStudent\t\t\t\t\t\t\t|\t\t\t\t\t\tReference\t\t\t\t\t\t|\nProblem\t|Lo\t\tHi\t\t$t0\t\t$t1\t\t$t2\t\t$t3\t\tCycle\t|Lo\t\tHi\t\t$t0\t\t$t1\t\t$t2\t\t$t3\t\tCycle\t|\n" + ''.join('-' for a in xrange(216))
+
+def to_hex(num):
+  tokens = num.split('\t')
+  result = ''
+  for token in tokens:
+    slices = token.split()
+    if token[0] in ['.', 'x']:
+      result += ''.join('X' for a in slices)
+    else:
+      result += ''.join(hex(int(a, 2))[2:] for a in slices)
+    result += '\t'
+  return result[0:-1]
 
 def student_reference_match_unbounded(student_out, reference_out):
   while True:
@@ -38,26 +58,38 @@ def fraction_lines_match_unbounded(student_out,reference_out):
     print line2
   return float(matched_lines)/float(total_lines)
       
-def fraction_lines_match_unbounded2(student_out,reference_out):
+def fraction_lines_match_unbounded2(student_out,reference_out, filename):
+  if filename[0:3] == 'ALU' and log:
+    print >> logfile, alu_header
+  elif filename[0:3] == 'reg' and log:
+    print >> logfile, reg_header
+  elif log: #CPU
+    print >> logfile, cpu_header
   total_lines = 0
   matched_lines = 0
   line1 = student_out.readline()
   line2 = reference_out.readline()
   while line2:    
-    if re.split('\W+', line2) == ['', '1', ''] or re.split('\W+', line2) == ['', '0', '']: # Stall line
+    if re.split('\W+', line2) == ['', '1', ''] or re.split('\W+', line2) == ['', '0', '']or re.split('\W+', line2) == ['', '']: # Stall line
       line3 = reference_out.readline()
       while re.match(line2, line1) and not re.match(line3, line1):
+        if log:
+          print >> logfile, '\t|' + to_hex(line1) + '\t|' + to_hex(line2) + '\t|'
         line1 = student_out.readline()
       line2 = line3
       continue
     if re.match(line2, line1):
       matched_lines += 1
+      if log:
+        print >> logfile, '\t|' + to_hex(line1) + '\t|' + to_hex(line2) + '\t|'
     else:
-      print '**** student: ' + line1
-      print '**** ref: ' + line2
+      if log:
+        print >> logfile, '***\t|' + to_hex(line1) + '\t|' + to_hex(line2) + '\t|'
     total_lines += 1
     line1 = student_out.readline()
     line2 = reference_out.readline()
+  if log:
+    print >> logfile, ''
   return float(matched_lines)/float(total_lines)
 
 class TestCase(object):
@@ -97,7 +129,10 @@ class FractionalTestCase(TestCase):
                             stdout=subprocess.PIPE)
     try:
       reference = open(self.tracefile)
-      fraction = fraction_lines_match_unbounded2(proc.stdout,reference)
+      print >> logfile, '\n'
+      filename = self.tracefile.split('/')[-1]
+      print >> logfile, '**** Testing: ' + filename + ' ****'
+      fraction = fraction_lines_match_unbounded2(proc.stdout,reference, filename)
     finally:
       #prevent runaway jvms
       os.kill(proc.pid,signal.SIGTERM)
@@ -122,18 +157,24 @@ def test_submission(name,outfile,tests):
     assert points_received <= points
     if points_received == points:
       print "\t%s PASSED test: %s" % (name, description)
+      if log:
+        print >> logfile, "\t%s PASSED test: %s" % (name, description)
       total_points += points
       total_points_received += points
       tests_passed += 1
       test_results.append("\tPassed test \"%s\" worth %d points." % (description,points))
     elif points_received > 0:
       print "\t%s PARTIALLY PASSED test: %s" % (name,description)
+      if log:
+        print >> logfile, "\t%s PARTIALLY PASSED test: %s" % (name,description)
       total_points += points
       total_points_received += points_received
       tests_partially_passed += 1
       test_results.append("\tPartially passed test \"%s\" worth %d points (received %d)" % (description, points, points_received))
     else:
       print "\t%s FAILED test: %s" % (name, description)
+      if log:
+        print >> logfile, "\t%s FAILED test: %s" % (name, description)
       total_points += points
       tests_failed += 1
       test_results.append("\tFailed test \"%s\" worth %d points. Reason: %s" % (description, points, reason))
@@ -144,8 +185,14 @@ def test_submission(name,outfile,tests):
   print >> outfile, "%s: %d/%d (%d/%d tests passed, %d partially)" %\
     (name, total_points_received, total_points, tests_passed,
      tests_passed + tests_failed + tests_partially_passed, tests_partially_passed)
+  if log:
+    print >> logfile, "\n\n%s: %d/%d (%d/%d tests passed, %d partially)" %\
+    (name, total_points_received, total_points, tests_passed,
+     tests_passed + tests_failed + tests_partially_passed, tests_partially_passed)
   for line in test_results:
     print >> outfile, line
+    if log:
+      print >> logfile, line
   
   return points_received
 
@@ -195,5 +242,5 @@ def main(tests):
     sys.exit(0)
   else:
     print >> sys.stderr, "Incorrect usage!"
-  sys.exit(1)
+  sys.exit(0)
     
